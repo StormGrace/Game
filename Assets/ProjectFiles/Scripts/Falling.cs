@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Falling : MonoBehaviour {
-    private float FallingTimer = 0;
     Controller ControllerScript;
+    private float FallingTimer = 0;
 
     void Start(){ControllerScript = gameObject.GetComponent<Controller>();}
 
@@ -13,21 +13,19 @@ public class Falling : MonoBehaviour {
     public void OnFall(bool IsFalling)
     {
         bool IsDead = false;
-
-        if (!IsDead)
+       
+        if (IsFalling)
         {
             if (FallingTimer >= ControllerScript.MaxFallingTime)
             {
                 IsFalling = false;
-                IsDead = true;
                 Debug.Log("Player is Dead!");
             }
 
             else
             {
-                IsDead = false;
+                IsDead = true;
                 FallingTimer += Time.deltaTime;
-                Debug.Log("Timer" + FallingTimer);
                 Debug.Log("Player is Falling!");
             }
         }

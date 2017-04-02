@@ -1,16 +1,20 @@
 ﻿using UnityEngine;
-using System;
+
 using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D))]
 public class Controller : MonoBehaviour
 {
-    Falling FallingScript;
+    [Header("Player States")]
+    public bool OnGround;
+    public bool IsFalling;
+    public bool IsDead;
+
+    [Header("Player Direction")]
+    public bool FacingRight;
+    public bool NeutralDirection;
 
     [Header("Player Movement")]
-    public bool IsFalling;
-    public bool OnGround;
-    public float MaxFallingTime;
     public int MaxSpeed;
     public float AccelRate;
     public float DeccelRate;
@@ -19,15 +23,17 @@ public class Controller : MonoBehaviour
     public float JumpHeight;
     public float JumpSpeed;
 
-    [Header("Player Direction")]
-    public bool FacingRight;
-    public bool NeutralDirection;
+    [Header("Player Fall")]
+    public LayerMask RayLayerMask;
+    public float MaxFallingTime;
 
     [Header("Debugging Variables")]
+    private float FallingTimer = 0;
     public float RayFallDistance = 1.5f;
     public Color RayFallColor = Color.red;
 
     [Header("Private Variables")]
+    private GameObject Player;
     private GameObject FinishObj;
     private GameObject StartObj;
 
@@ -50,14 +56,13 @@ public class Controller : MonoBehaviour
 
     void Awake()
     {
-        FallingScript = GetComponent<Falling>();
         CubeAnimation = GetComponent<Animator>();
         Rb = GetComponent<Rigidbody2D>();
     }
     void Start()
     {
-        FinishObj = GameObject.FindGameObjectWithTag("Finish");
         StartObj = GameObject.FindGameObjectWithTag("Spawn");
+        FinishObj = GameObject.FindGameObjectWithTag("Finish");
 
         OnGround = true; NeutralDirection = true;
 
@@ -66,22 +71,24 @@ public class Controller : MonoBehaviour
         PlayerPos = transform.position;
     }
 
-    void Update(){FallOfEdge();}
+    void Update() { FallOfEdge(); }
 
     void FixedUpdate()
     {
         float Horizontal = Input.GetAxisRaw("Horizontal");
         float Vertical = Input.GetAxisRaw("Vertical");
 
+        OnFall();
         Movement(Horizontal);
-        Animations(Horizontal, IsFalling);
-        Pickup(Vector2.zero, PickupRadius);
-
+        Animations(Horizontal);
+        Measures();
+        //Pickup(Vector2.zero, PickupRadius);
     }
+
     private void Movement(float Horizontal)
     {
 
-        if (Horizontal != 0 && !IsFalling)
+        if (Horizontal != 0 && !IsFalling && !IsDead)
         {
             NeutralDirection = false;
             MoveSpeed = Mathf.Lerp(Horizontal * Rb.velocity.x, MaxSpeed, Time.deltaTime * AccelRate); // Acceleration Smoother.
@@ -95,48 +102,81 @@ public class Controller : MonoBehaviour
         }
         else
         {
-            NeutralDirection = true;
+            NeutralDirection = true; FacingRight = false;
             MoveSpeed = Mathf.Lerp(Rb.velocity.x, 0, Time.deltaTime * DeccelRate); // Decceleration Smoother.
             Rb.velocity = new Vector2(MoveSpeed, Rb.velocity.y); // Apply the Movement variable to the velocity of the object.
         }
     }
 
-    private void Animations(float Horizontal, bool IsFalling)
+    private void Animations(float Horizontal)
     {
         CubeAnimation.SetFloat("Input", Horizontal);
         CubeAnimation.SetBool("Falling", IsFalling);
+        //CubeAnimation.SetBool("Dead", IsDead);
+
+        if (CubeAnimation.GetCurrentAnimatorStateInfo(0).IsName("fall"))
+        {
+            CubeAnimation.speed = 1 / (MaxFallingTime / 4); //Get the duration needed per one frame for the Falling animation.;
+            Debug.Log("Playing the Fall");
+        }
+        else { Debug.Log("NOT Playing the Fall!"); }
     }
 
     private void FallOfEdge()
     {
-        float RayDistance = RayFallDistance * transform.localScale.y; //Change Ray's distance with Player's size.
+        float RayDistance = RayFallDistance * transform.localScale.y; //Change Ray's distance with Player size.
 
-        if (OnGround)
+        if (OnGround && !IsFalling && !IsDead)
         {
-            RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, RayDistance, 9 << LayerMask.NameToLayer("Platform"));
+            RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, RayDistance, RayLayerMask);
 
-            if (hit.collider != null) { Collision = hit.collider.GetComponent<BoxCollider2D>(); }
+            if (hit.collider != null) { Collision = hit.collider.GetComponent<BoxCollider2D>(); } //Get the BoxCollider of the object the Player is hitting.
 
-            if ((transform.localPosition.x + 0.05) > Collision.bounds.max.x || (transform.localPosition.x + 0.05) < Collision.bounds.min.x)
+            if (((transform.localPosition.x + 0.045) > Collision.bounds.max.x) || (transform.localPosition.x + 0.045) < Collision.bounds.min.x) //Is the Player off the Platform's collider (edge)?
             {
                 IsFalling = true; OnGround = false; Rb.freezeRotation = false;
 
-                Rb.inertia = 1; //Add additional rotation when the Player is falling.
+                Rb.inertia = 0.25F; //Add additional rotation when the Player is falling.
                 Rb.velocity = new Vector2(Rb.velocity.x + 0.1f, Rb.velocity.y); //Add velocity to X axis (incase it doesn't fall).
+            }
 
-                FallingScript.OnFall(IsFalling); //[FC] Call the Falling Function from the script named "Falling".
-            }
-            else
-            {
-                IsFalling = false; Rb.freezeRotation = true;
-            }
+            else { IsFalling = false; Rb.freezeRotation = true; }
 
         }
         //[FDP]
         Debug.DrawRay(transform.position, Vector2.down * RayDistance, RayFallColor);
     }
+    private void OnFall()
+    {
+        if (IsFalling)
+        {
+            Physics2D.IgnoreLayerCollision(9, 10, true);
 
-    private void Pickup(Vector2 Center, float PickupRadius)
+            if (FallingTimer >= MaxFallingTime || OnGround)
+            {
+                IsFalling = false;
+                Debug.Log("Player is Dead!");
+            }
+            else
+            {
+                IsDead = true;
+                FallingTimer += Time.deltaTime;
+                Debug.Log("Timer" + Mathf.Ceil(FallingTimer));
+                Debug.Log("Player is Falling!");
+            }
+        }
+    }
+    private void Measures()
+    {
+        if (!IsFalling && !IsDead)
+        {
+            TravelledDistance += (new Vector2(transform.position.x, transform.position.y) - LastPosition).magnitude;
+            LastPosition = transform.position;
+            Debug.Log("TravelledDistance" + Mathf.Ceil(TravelledDistance));
+        }
+    }
+
+    /*private void Pickup(Vector2 Center, float PickupRadius)
     {
         Center = transform.position;
         Collider2D[] ItemColl = Physics2D.OverlapCircleAll(Center, PickupRadius, 1 << LayerMask.NameToLayer("Items"));
@@ -163,10 +203,20 @@ public class Controller : MonoBehaviour
          {
              Vector2.SmoothDamp(new Vector2(Items.transform.position.x, Items.transform.position.y), new Vector2(transform.position.x, transform.position.y), 
              ref ItemSpeed, 1, 100, Time.deltaTime);
-         }*/
+         }
 
+    }*/
+
+    private void OnCollisionEnter2D(Collision2D coll)
+    {
+        if (coll.collider.gameObject.tag == "Ground") {OnGround = true; }
     }
 
+    private void OnCollisionExit2D(Collision2D coll)
+    {
+        if (IsFalling) {coll.collider.gameObject.layer = LayerMask.NameToLayer("FellFrom");}
+        OnGround = false;
+    }
 }
 
 

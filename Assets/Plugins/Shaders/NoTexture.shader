@@ -1,4 +1,6 @@
-﻿Shader "Custom/NoTexture" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Custom/NoTexture" {
 	SubShader {
 		Tags { "Queue"="Transparent" "IgnoreProjector"="True" "RenderType"="Transparent" }
 		Blend SrcAlpha OneMinusSrcAlpha
@@ -16,7 +18,7 @@
 				};
 
 				data vert (data v) {
-					v.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+					v.vertex = UnityObjectToClipPos(v.vertex);
 					return v;
 				}
 
