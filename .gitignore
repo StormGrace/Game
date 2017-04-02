@@ -1,3 +1,7 @@
+#Project Plugins
+/[Pp]lugins/
+
+#Unity-Generated Folders
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
@@ -23,10 +27,10 @@ ExportedObj/
 *.svd
 *.pdb
 
-# Unity3D generated meta files
+# Unity-Generated meta files
 *.pidb.meta
 
-# Unity3D Generated File On Crash Reports
+# Unity-Generated File On Crash Reports
 sysinfo.txt
 
 # Builds
