@@ -10,13 +10,12 @@ public class Controller : MonoBehaviour
     public bool IsDead;
 
     [Header("Player Direction")]
-    public bool FacingRight;
-    public bool NeutralDirection;
+    public bool FacingRight, NeutralDirection;
 
     [Header("Player Movement")]
     public int MaxSpeed;
-    public float AccelRate;
-    public float DeccelRate;
+    public float AccelRate, DeccelRate, TravelledHeight;
+    public int MeasureNormalizer;
 
     [Header("Player Jump")]
     public float JumpHeight;
@@ -32,35 +31,37 @@ public class Controller : MonoBehaviour
     private Color RayFallColor = Color.red;
 
     [Header("General Variables")]
+    private GameObject Spawn;
     private Animator CubeAnimation;
     private Rigidbody2D Rb;
-
+    
     [Header("Measurement Variables")]
     private BoxCollider2D Collision;
     private float MoveSpeed;
     private float HeightToFinish;
     private float TravelledDistance;
     private float PickupRadius;
+    private float StartingPosition;
 
     [Header("Vector2 Variables")]
     private Vector2 LastPosition;
     private Vector2 ItemSpeed;
     private Vector2 PlayerPos;
+    public float LastHeight;
 
     void Awake(){
         CubeAnimation = GetComponent<Animator>();
         Rb = GetComponent<Rigidbody2D>();
     }
-    void Start(){ 
-    
-        //StartObj = GameObject.FindGameObjectWithTag("Spawn");
-        //FinishObj = GameObject.FindGameObjectWithTag("Finish");
-
+    void Start(){
         OnGround = true; NeutralDirection = true;
+  
         LastPosition = transform.position;
     }
 
-    void Update() { FallOfEdge(); }
+    void LateUpdate() { LastHeight = transform.localPosition.y; }
+
+    void Update() {FallOfEdge();}
 
     void FixedUpdate(){
         float Horizontal = Input.GetAxisRaw("Horizontal");
@@ -118,7 +119,7 @@ public class Controller : MonoBehaviour
         {
             RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, RayDistance, RayLayerMask);  
 
-            if (hit.collider != null) { Collision = hit.collider.GetComponent<BoxCollider2D>(); } //Get the BoxCollider of the object the RayCast is hitting.
+            if (hit.collider != null) {Collision = hit.collider.GetComponent<BoxCollider2D>(); } //Get the BoxCollider of the object the RayCast is hitting.
 
             //if (hit.collider.gameObject.layer == LayerMask.NameToLayer("BasePlatform")) {bool OnBaseGround; }
 
@@ -127,10 +128,10 @@ public class Controller : MonoBehaviour
                 IsFalling = true; OnGround = false; Rb.freezeRotation = false;
 
                 Rb.inertia = 0.20F; //Add additional rotation when the Player is falling.
-                Rb.velocity = new Vector2(Rb.velocity.x + 0.1f, Rb.velocity.y); //Add additional velocity to the X axis (incase the Player doesn't fall).
+                Rb.velocity = new Vector2(Rb.velocity.x + (0.28F * Rb.velocity.normalized.x), Rb.velocity.y); //Add additional velocity to the X axis (incase the Player doesn't fall).
             }
 
-            else { IsFalling = false; Rb.freezeRotation = true; }
+            else {IsFalling = false; Rb.freezeRotation = true; }
 
             //[FDP]
             Debug.DrawRay(transform.position, Vector2.down * RayDistance, RayFallColor);
@@ -158,15 +159,21 @@ public class Controller : MonoBehaviour
             }
         }
     }
-    private void Measures()
+    private void Measures()                            
     {
         if (!IsFalling && !IsDead)
         {
             //Calculate the distance travelled by adding the LastPosition with the current.
-            TravelledDistance += (new Vector2(transform.position.x, transform.position.y) - LastPosition).magnitude;
+            TravelledDistance += (new Vector2(transform.position.x, transform.position.y) - LastPosition).magnitude * MeasureNormalizer;
             LastPosition = transform.position;
 
-            Debug.Log("TravelledDistance" + Mathf.Ceil(TravelledDistance));
+            //Calculate the distance travelled on the Y-axis.
+            if (transform.localPosition.y > LastHeight) { TravelledHeight = Mathf.Abs((transform.localPosition.y) + LastHeight) * MeasureNormalizer; }
+        
+
+            //[FDP]
+            //Debug.Log("TravelledDistance" + Mathf.Ceil(TravelledDistance));
+            Debug.Log("TravelledHeight" + Mathf.Ceil(TravelledHeight));
         }
     }
 
