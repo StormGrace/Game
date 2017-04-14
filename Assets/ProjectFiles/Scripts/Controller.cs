@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections;
 
 [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D))]
 public class Controller : MonoBehaviour
@@ -28,27 +27,30 @@ public class Controller : MonoBehaviour
     [Header("General Variables")]
     public float TravelledHeight;
     private float MoveSpeed, HeightToFinish, TravelledDistance, LastHeight;
-    private Animator CubeAnimation;
-    private Rigidbody2D RgdBdy;
+
     public GameObject Spawn;
+    private Animator CubeAnimation;
+    private Effector2D Effector;
+    private Rigidbody2D RgdBdy;
     private Vector2 LastPosition;
    
-    void Awake(){
+    private void Awake(){
+
         CubeAnimation = GetComponent<Animator>();
         RgdBdy = GetComponent<Rigidbody2D>();
     }
 
-    void Start(){
+    private void Start(){
         OnGround = true;
         NeutralDirection = true;
         LastPosition = transform.position;
     }
 
-    void LateUpdate() { LastHeight = transform.localPosition.y; }
+    private void LateUpdate() { LastHeight = transform.localPosition.y; }
 
-    void Update() {Measures();}
+    private void Update() {Measures();}
 
-    void FixedUpdate(){
+    private void FixedUpdate(){
         float Horizontal = Input.GetAxisRaw("Horizontal");
 
         Movement(Horizontal);
@@ -62,7 +64,7 @@ public class Controller : MonoBehaviour
     {
         if (Input.GetButtonDown("Jump") && OnGround && !IsFalling)
         {
-            RgdBdy.velocity = (new Vector2(RgdBdy.velocity.x, 750 * Time.deltaTime));
+            RgdBdy.velocity = (new Vector2(RgdBdy.velocity.x, JumpHeight * Time.deltaTime));
         }
     }
     private void Movement(float Horizontal){
@@ -114,12 +116,15 @@ public class Controller : MonoBehaviour
             BoxCollider2D Collision = null;
 
             if (coll.collider != null) {Collision = coll.collider.GetComponent<BoxCollider2D>();} //Get the BoxCollider of the object the RayCast is hitting.
+            if(coll.collider.gameObject.layer == LayerMask.NameToLayer("BasePlatform")) {transform.position = new Vector2(Mathf.Clamp(transform.position.x,-20, 20), transform.position.y);}
 
             if (((transform.position.x - EdgeOffset) >= Collision.bounds.max.x && RgdBdy.velocity.normalized.x >= 0) || ((transform.position.x + EdgeOffset) <= Collision.bounds.min.x) && RgdBdy.velocity.normalized.x <= 0) //Check if the Player is off the Platform collider (edge).
             {
                 IsFalling = true; OnGround = false; RgdBdy.freezeRotation = false;     
                 RgdBdy.inertia = 0.18F; //Add additional rotation when the Player is falling.
                 RgdBdy.velocity = new Vector2(RgdBdy.velocity.x + (2 * RgdBdy.velocity.normalized.x), RgdBdy.velocity.y); //Add additional velocity to the X axis (incase the Player doesn't fall).
+              
+                Physics2D.IgnoreLayerCollision(9, 15, true);
             }
             else {IsFalling = false; RgdBdy.freezeRotation = true;}
 
@@ -133,8 +138,7 @@ public class Controller : MonoBehaviour
 
         if (IsFalling && !IsDead)
         {
-            Physics2D.IgnoreLayerCollision(9, 10, true);
-
+         
             if (FallingTimer >= MaxFallingTime || OnGround)
             {
                 IsFalling = false;

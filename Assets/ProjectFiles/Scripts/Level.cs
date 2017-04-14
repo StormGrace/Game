@@ -1,18 +1,16 @@
-﻿using System.Collections;
+﻿using UnityEngine;
 using System.Collections.Generic;
-using UnityEngine;
 
 public class Level : MonoBehaviour
 {
+    List<GameObject> PlatformForDeletation;
+
     private BoxCollider2D PlayerSize, PlatformSize;
-    private GameObject Spawn, Player, Platform, FirstPlatform;
+    private GameObject Spawn, Player, Platform, Background, FirstPlatform;
+    private Renderer BackgroundRenderer;
 
     private Controller ControllerScript;
     private Effector2D PlatformEffector;
-
-    private int Height, DeletationCounter;
-    private float PlatformPosition;
-    private bool Clean;
 
     [Header("Generation Options")]
     public Transform Platforms;
@@ -24,20 +22,26 @@ public class Level : MonoBehaviour
     public float MaxPlatformSize = 100;
     private float MinPlatformSize;
     public int SizeVariation = 100;
- 
-    List<GameObject> PlatformForDeletation;
 
-    void Start()
+    private int Height, DeletationCounter;
+    private float PlatformPosition;
+    private bool Clean;
+
+    private void Start()
     {
         Spawn = GameObject.FindGameObjectWithTag("Spawn");
         Player = GameObject.FindGameObjectWithTag("Player");
         Platform = GameObject.FindGameObjectWithTag("Platform");
+        Background = GameObject.FindGameObjectWithTag("Background");
+
+        BackgroundRenderer = Background.gameObject.GetComponent<Renderer>();
 
         ControllerScript = Player.GetComponent<Controller>();
         PlayerSize = Player.GetComponent<BoxCollider2D>();
 
         Platforms.gameObject.AddComponent<BoxCollider2D>().usedByEffector = true;
         PlatformSize = Platforms.gameObject.GetComponent<BoxCollider2D>();
+        PlatformSize.size = new Vector2(PlatformSize.size.x, PlatformSize.size.y - 0.4F);
 
         PlatformSize.gameObject.layer = LayerMask.NameToLayer("Platform");
         PlatformSize.gameObject.tag = "Ground";
@@ -49,10 +53,12 @@ public class Level : MonoBehaviour
         PlatformPosition = Spawn.transform.position.y;
 
         PlatformForDeletation = new List<GameObject>();
+
     }
 
-    void Update()
+    private void Update()
     {
+        BackgroundScroll();
 
         if (Height % GenerationStep  == 0)
         {
@@ -80,7 +86,7 @@ public class Level : MonoBehaviour
         Debug.Log("HEIGHT" + Height);
     }
 
-    public void GeneratePlatforms()
+    private void GeneratePlatforms()
     {
         Vector2 NewPosition = Vector2.zero;
         //Create a certain number of Platforms per a specified PlatformStep.
@@ -97,9 +103,27 @@ public class Level : MonoBehaviour
             TempTrans.gameObject.transform.localScale = new Vector2(TempSize, 1);
             PlatformForDeletation.Add(TempTrans.gameObject); //Store all the Platform Instances in a List container.
         }
+
         Height += 1;
         PlatformPosition = NewPosition.y; //Save the Last Position for the Next Iteration Call.  
     }
+
+    private void BackgroundScroll()
+    {
+        float Reduced = 0;
+
+        if (BackgroundRenderer.material.mainTextureOffset.y < 0.7F)
+        {
+            if (Height >= 110)
+            {
+                Reduced += ControllerScript.TravelledHeight / 1000;
+            }
+            else { Reduced = -1 + ControllerScript.TravelledHeight / SectionStep; }
+
+            BackgroundRenderer.material.mainTextureOffset = new Vector2(0, Mathf.Clamp(Reduced, -1, 0.7F));
+        }
+    }
 }
+
 
 
