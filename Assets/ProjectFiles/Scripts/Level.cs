@@ -6,26 +6,28 @@ public class Level : MonoBehaviour
     List<GameObject> PlatformForDeletation;
 
     private BoxCollider2D PlayerSize, PlatformSize;
-    private GameObject Spawn, Player, Platform, Background, FirstPlatform;
-    private Renderer BackgroundRenderer;
+    private GameObject Spawn, Player, Platform, Background;
+    public GameObject BasePlatforms;
 
     private Controller ControllerScript;
     private Effector2D PlatformEffector;
-
+    
     [Header("Generation Options")]
     public Transform Platforms;
+
     public int PlatformsPerSection;
-    public float PlatformGap;
-    public float SectionStep = 1000;
+    public int PlatformGap;
+    public float SectionStep;
     public float GenerationStep;
     public float DeletionStep;
-    public float MaxPlatformSize = 100;
+    public float MaxPlatformSize ;
     private float MinPlatformSize;
-    public int SizeVariation = 100;
+    public int SizeVariation;
 
-    private int Height, DeletationCounter;
+    public int Height;
+    private int DeletationCounter;
     private float PlatformPosition;
-    private bool Clean;
+    private bool Clean, Base;
 
     private void Start()
     {
@@ -33,9 +35,7 @@ public class Level : MonoBehaviour
         Player = GameObject.FindGameObjectWithTag("Player");
         Platform = GameObject.FindGameObjectWithTag("Platform");
         Background = GameObject.FindGameObjectWithTag("Background");
-
-        BackgroundRenderer = Background.gameObject.GetComponent<Renderer>();
-
+       
         ControllerScript = Player.GetComponent<Controller>();
         PlayerSize = Player.GetComponent<BoxCollider2D>();
 
@@ -53,76 +53,75 @@ public class Level : MonoBehaviour
         PlatformPosition = Spawn.transform.position.y;
 
         PlatformForDeletation = new List<GameObject>();
-
     }
 
     private void Update()
     {
-        BackgroundScroll();
+        if (Height % SectionStep == 0 && Height > 0) 
+            GenerateBase();
+        
+        else if (Height % GenerationStep == 0) 
+            GeneratePlatforms();  
 
-        if (Height % GenerationStep  == 0)
-        {
-            GeneratePlatforms();
-            Clean = false;
-        }
-        else if (PlatformForDeletation.Capacity > 12 && Clean == false)
-        {
-            for (int i = 1; i < PlatformsPerSection; i++)
-            {
-                Destroy(PlatformForDeletation[i - 1]);
-            }
+        else if (PlatformForDeletation.Capacity > 12 && Clean == false) 
+            CleanPlatforms();  
 
-            PlatformForDeletation.RemoveRange(0, 3);
-            Clean = true;
-        }
         else
         {
-            if ((Height - 1) + 10 < ControllerScript.TravelledHeight)
+            if ((Height - 1) + PlatformGap < ControllerScript.TravelledHeight)
             {
-                Height = ((int)(ControllerScript.TravelledHeight) / 10) * 10;
+                Height = ((int)(ControllerScript.TravelledHeight) / PlatformGap) * PlatformGap;
             }
         }
+    }
 
-        Debug.Log("HEIGHT" + Height);
+    private void GenerateBase()
+    {
+        Destroy(BasePlatforms);
+   
+        Vector2 BasePosition = new Vector2(0, PlatformPosition + PlatformGap);
+        PlatformPosition = BasePosition.y;
+        BasePlatforms = Instantiate(PrefabManager.Instance.PlatformPrefab, BasePosition, Quaternion.identity);
+        Height += 1;
     }
 
     private void GeneratePlatforms()
     {
-        Vector2 NewPosition = Vector2.zero;
+        Vector2 NewPosition = Vector2.zero; 
         //Create a certain number of Platforms per a specified PlatformStep.
-        for (int i = 1; i < PlatformsPerSection; i++)
-        {
-            Transform TempTrans = null; float TempPos, TempSize;
 
-            TempPos = Random.Range(-PlatformGap, PlatformGap);
-            TempSize = Random.Range(MinPlatformSize, MaxPlatformSize * SizeVariation / 100);
+            for (int i = 1; i < PlatformsPerSection; i++)
+            {
 
-            NewPosition = new Vector2(TempPos, PlatformPosition + PlatformGap * i);
-            TempTrans = Instantiate(Platforms, NewPosition, Quaternion.identity);  //Get the Platform Instance per 1 cycle.
+                Transform TempTrans = null; float TempPos, TempSize;
 
-            TempTrans.gameObject.transform.localScale = new Vector2(TempSize, 1);
-            PlatformForDeletation.Add(TempTrans.gameObject); //Store all the Platform Instances in a List container.
-        }
+                TempPos = Random.Range(-PlatformGap, PlatformGap);
+                TempSize = Random.Range(MinPlatformSize, MaxPlatformSize * SizeVariation / 100);
+
+                NewPosition = new Vector2(TempPos, PlatformPosition + PlatformGap * i);
+                TempTrans = Instantiate(Platforms, NewPosition, Quaternion.identity);  //Get the Platform Instance per 1 cycle.
+
+                TempTrans.gameObject.transform.localScale = new Vector2(TempSize, 1);
+                PlatformForDeletation.Add(TempTrans.gameObject); //Store all the Platform Instances in a List container.
+            }
+
+            PlatformPosition = NewPosition.y; //Save the Last Position for the Next Iteration Call.  
 
         Height += 1;
-        PlatformPosition = NewPosition.y; //Save the Last Position for the Next Iteration Call.  
+        Clean = false;
     }
 
-    private void BackgroundScroll()
+    private void CleanPlatforms()
     {
-        float Reduced = 0;
-
-        if (BackgroundRenderer.material.mainTextureOffset.y < 0.7F)
+        for (int i = 1; i < PlatformsPerSection; i++)
         {
-            if (Height >= 110)
-            {
-                Reduced += ControllerScript.TravelledHeight / 1000;
-            }
-            else { Reduced = -1 + ControllerScript.TravelledHeight / SectionStep; }
-
-            BackgroundRenderer.material.mainTextureOffset = new Vector2(0, Mathf.Clamp(Reduced, -1, 0.7F));
+                Destroy(PlatformForDeletation[i - 1]);
         }
+
+        PlatformForDeletation.RemoveRange(0, 3);
+        Clean = true;
     }
+
 }
 
 

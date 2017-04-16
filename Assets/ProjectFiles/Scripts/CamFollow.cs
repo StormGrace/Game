@@ -2,9 +2,10 @@
 
 public class CamFollow : MonoBehaviour
 {
-    private Level LevelScript;
-    public GameObject Background;
+    private Controller ControllerScript;
+    private Renderer BackgroundRenderer;
 
+    public GameObject Background;
     public Camera Cam;
 
     public float MaxZoomOut;
@@ -20,16 +21,16 @@ public class CamFollow : MonoBehaviour
     public Vector3 CameraOffset;
     private Vector3 Vel = Vector3.zero;
 
-    private void Awake()
+    private void Start()
     {
-    }
-    void Start()
-    {
-        
+        ControllerScript = Player.GetComponent<Controller>();
+        BackgroundRenderer = Background.gameObject.GetComponent<Renderer>();
     }
 
     private void Update()
     {
+        ScrollBackground();
+
         if (ZoomOut)
         {
             Cam.orthographicSize = Mathf.Lerp(Cam.orthographicSize, MaxZoomOut, ZoomSpeed * Time.deltaTime);
@@ -42,17 +43,31 @@ public class CamFollow : MonoBehaviour
         
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        if (ZoomOut)
-        {
-            if (SmoothFollow && Player.transform.hasChanged)
+            if (ZoomOut && SmoothFollow && Player.transform.hasChanged && !ControllerScript.IsDead)  
             {
-                Vector3 PlayerPos = Player.transform.position + CameraOffset;
-                Vector3 CameraFollow = Vector3.SmoothDamp(transform.position, PlayerPos, ref Vel, (FollowSpeed * Time.smoothDeltaTime));
+                if (ControllerScript.IsFalling) { FollowSpeed /= 2; } // Increase the Camera's FollowSpeed on Player Fall.
+
+                Vector3 PlayerPos = Player.transform.position + CameraOffset;    
+                Vector3 CameraFollow = Vector3.SmoothDamp(transform.position, new Vector3(Mathf.Clamp(PlayerPos.x, -5, 5), PlayerPos.y, PlayerPos.z), ref Vel, (FollowSpeed * Time.smoothDeltaTime));
                 transform.position = CameraFollow;
-                Player.transform.hasChanged = false;
             }
+    }
+
+    private void ScrollBackground()
+    {
+        float Reduced = 0;
+
+        if (BackgroundRenderer.material.mainTextureOffset.y < 0.7F)
+        {
+            if (ControllerScript.TravelledHeight >= 110)
+            {
+                Reduced += ControllerScript.TravelledHeight / 1000;
+            }
+            else { Reduced = -1 + ControllerScript.TravelledHeight / 100; }
+
+            BackgroundRenderer.material.mainTextureOffset = new Vector2(0, Mathf.Clamp(Reduced, -1, 0.7F));
         }
     }
 }
