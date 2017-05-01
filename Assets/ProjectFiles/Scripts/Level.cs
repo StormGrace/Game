@@ -14,6 +14,8 @@ public class Level : MonoBehaviour
     
     [Header("Generation Options")]
     public Transform Platforms;
+    public Transform Items;
+    public int ItemsChance;
 
     public int PlatformsPerSection;
     public int PlatformGap;
@@ -25,9 +27,8 @@ public class Level : MonoBehaviour
     public int SizeVariation;
 
     public int Height;
-    private int DeletationCounter;
     private float PlatformPosition;
-    private bool Clean, Base;
+    private bool Clean;
 
     private void Start()
     {
@@ -53,15 +54,16 @@ public class Level : MonoBehaviour
         PlatformPosition = Spawn.transform.position.y;
 
         PlatformForDeletation = new List<GameObject>();
+        ItemsChance /= 100;
     }
 
     private void Update()
     {
-        if (Height % SectionStep == 0 && Height > 0) 
+        if (Height % SectionStep == 0 && Height > 0)
             GenerateBase();
-        
-        else if (Height % GenerationStep == 0) 
-            GeneratePlatforms();  
+
+        else if (Height % GenerationStep == 0)
+            GeneratePlatforms();
 
         else if (PlatformForDeletation.Capacity > 12 && Clean == false) 
             CleanPlatforms();  
@@ -92,16 +94,17 @@ public class Level : MonoBehaviour
 
             for (int i = 1; i < PlatformsPerSection; i++)
             {
-
                 Transform TempTrans = null; float TempPos, TempSize;
 
                 TempPos = Random.Range(-PlatformGap, PlatformGap);
                 TempSize = Random.Range(MinPlatformSize, MaxPlatformSize * SizeVariation / 100);
-
+                
                 NewPosition = new Vector2(TempPos, PlatformPosition + PlatformGap * i);
                 TempTrans = Instantiate(Platforms, NewPosition, Quaternion.identity);  //Get the Platform Instance per 1 cycle.
-
+                
                 TempTrans.gameObject.transform.localScale = new Vector2(TempSize, 1);
+
+                ProceduralDetails.Items(TempTrans.gameObject, Items, ItemsChance);    
                 PlatformForDeletation.Add(TempTrans.gameObject); //Store all the Platform Instances in a List container.
             }
 
@@ -124,5 +127,23 @@ public class Level : MonoBehaviour
 
 }
 
+public class ProceduralDetails
+{
+    public static void Landscape(Transform PlatformTransforms)
+    {
 
 
+    }
+
+   public static void Items(GameObject PlatformTransforms, Transform Items, int PercentageChance)
+    {
+        
+        if (Random.Range(0, 1) < PercentageChance)
+        {
+            int Pos = Random.Range(0, PlatformTransforms.transform.childCount);
+            Transform PlatformSpawns = PlatformTransforms.gameObject.transform.GetChild(Random.Range(0,Pos));
+            GameObject PlatDetails = MonoBehaviour.Instantiate(Items, new Vector2(PlatformSpawns.transform.position.x, PlatformSpawns.transform.position.y + 1), Quaternion.identity).gameObject;
+            PlatDetails.transform.parent = PlatformSpawns.transform;
+        }
+   }
+}

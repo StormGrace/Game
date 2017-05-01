@@ -2,8 +2,13 @@
 
 public class PrefabManager : MonoBehaviour
 {
-    // Assign the prefab in the inspector
+    public static bool CoinStartFromTop;
     public GameObject PlatformPrefab;
+
+    public static void CheckCoins()
+    {
+        CoinStartFromTop = !CoinStartFromTop; //Change the Starting Position for the Coin Movement.
+    }
 
     private static PrefabManager m_Instance = null;
     public static PrefabManager Instance
@@ -17,4 +22,6 @@ public class PrefabManager : MonoBehaviour
             return m_Instance;
         }
     }
+ 
+
 }

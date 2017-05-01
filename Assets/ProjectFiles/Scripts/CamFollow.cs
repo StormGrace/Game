@@ -34,7 +34,7 @@ public class CamFollow : MonoBehaviour
         if (ZoomOut)
         {
             Cam.orthographicSize = Mathf.Lerp(Cam.orthographicSize, MaxZoomOut, ZoomSpeed * Time.deltaTime);
-            Background.transform.localScale = new Vector3(Camera.main.orthographicSize * 2 * Camera.main.aspect, Camera.main.orthographicSize * 2, 1);
+            Background.transform.localScale = new Vector3(Camera.main.orthographicSize * 2 * Camera.main.aspect, Camera.main.orthographicSize * 2 + 0.5F, 1);
         }
         else
         {
@@ -42,7 +42,6 @@ public class CamFollow : MonoBehaviour
         }
         
     }
-
     private void FixedUpdate()
     {
             if (ZoomOut && SmoothFollow && Player.transform.hasChanged && !ControllerScript.IsDead)  

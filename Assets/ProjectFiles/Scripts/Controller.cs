@@ -3,6 +3,8 @@
 [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D))]
 public class Controller : MonoBehaviour
 {
+    public GameObject Spawn;
+
     [Header("Player States")]
     public bool OnGround;
     public bool IsFalling;
@@ -26,22 +28,31 @@ public class Controller : MonoBehaviour
 
     [Header("General Variables")]
     public float TravelledHeight;
-    private float MoveSpeed, HeightToFinish, TravelledDistance, LastHeight;
+    private float MoveSpeed, TravelledDistance, LastHeight;
 
+    //Audio Part.
+    private AudioManager AudioManagerScript;
+    private AudioSource Audio;
+    //
+
+    //Other Variables.
     private BoxCollider2D PlayerSize;
-    public GameObject Spawn;
+    private GameObject Manager;
     private Animator CubeAnimation;
-    private Effector2D Effector;
     private Rigidbody2D RgdBdy;
     private Vector2 LastPosition;
-    private float Bounds;
     private float Horizontal;
+    //
 
     private void Awake(){
+  
+        Manager = GameObject.FindGameObjectWithTag("Manager");
+        AudioManagerScript = Manager.GetComponent<AudioManager>();
 
+        Audio = GetComponent<AudioSource>();
         CubeAnimation = GetComponent<Animator>();
         RgdBdy = GetComponent<Rigidbody2D>();
-        PlayerSize = GetComponent<BoxCollider2D>();
+        PlayerSize = GetComponent<BoxCollider2D>();   
     }
 
     private void Start(){
@@ -49,30 +60,19 @@ public class Controller : MonoBehaviour
         NeutralDirection = true;
         LastPosition = transform.position;
     }
-
     private void LateUpdate() { LastHeight = transform.localPosition.y; }
     private void Update() {
+        //Inputs
         Horizontal = Input.GetAxisRaw("Horizontal");
-
         JumpButton = Input.GetButtonDown("Jump");
         Jump();
-
         Measures();
     }
 
     private void FixedUpdate(){
-        Movement(Horizontal);
-        OnFall();
-        Animations(Horizontal);
-        //Pickup(Vector2.zero, PickupRadius);
+        Movement(Horizontal); OnFall(); Animations(Horizontal);
     }
-    private void Jump()
-    {
-        if (JumpButton && OnGround && !IsFalling)
-        {
-            RgdBdy.velocity = (new Vector2(RgdBdy.velocity.x, JumpPower * Time.fixedDeltaTime));
-        }
-    }
+
     private void Movement(float Horizontal){
 
         //Check if the Player is ready to move.
@@ -101,25 +101,31 @@ public class Controller : MonoBehaviour
 
     }
 
-    private void Animations(float Horizontal)
+    private void Jump()
     {
-       //Incase The Falling boolean is true, but the Player isn't falling.
-        CubeAnimation.SetBool("Falling", IsFalling);
-  
-        if (CubeAnimation.GetCurrentAnimatorStateInfo(0).IsName("fall"))
+        if (JumpButton && OnGround && !IsFalling)
         {
-            CubeAnimation.speed = 1 / (MaxFallingTime / 4); //Get the duration needed per one frame for the Falling animation.;
+            AudioManagerScript.PlaySoundEffect(AudioManagerScript.Jump);
+            RgdBdy.velocity = (new Vector2(RgdBdy.velocity.x, JumpPower * Time.fixedDeltaTime));
         }
-        else {CubeAnimation.SetFloat("Input", Horizontal);}
     }
 
     private void FallOfEdge(Collision2D coll)
     {
-        if (OnGround && !IsFalling && !IsDead)
+        if (!IsFalling && !IsDead)
         {
             BoxCollider2D Collision = null;
+            
+            if (coll.collider != null) {
 
-            if (coll.collider != null) {Collision = coll.collider.GetComponent<BoxCollider2D>();} //Get the BoxCollider of the object the RayCast is hitting
+                Collision = coll.collider.GetComponent<BoxCollider2D>(); //Get the BoxCollider of the object, the RayCast is hitting
+
+                if(transform.position.y > Collision.bounds.max.y)
+                {
+                    OnGround = true;
+                }
+            }  
+
             if (((transform.position.x - EdgeOffset) >= Collision.bounds.max.x && RgdBdy.velocity.normalized.x >= 0) || ((transform.position.x + EdgeOffset) <= Collision.bounds.min.x) && RgdBdy.velocity.normalized.x <= 0) //Check if the Player is off the Platform collider (edge).
             {
                 IsFalling = true; OnGround = false; RgdBdy.freezeRotation = false;     
@@ -149,6 +155,19 @@ public class Controller : MonoBehaviour
                 FallingTimer += Time.deltaTime;
             }
         }
+
+        Vector2 maxbound = Camera.main.ViewportToWorldPoint(new Vector2(1, transform.position.y));
+        Vector2 minbound = Camera.main.ViewportToWorldPoint(new Vector2(0, transform.position.y));
+
+        if (transform.position.x + PlayerSize.bounds.extents.x > maxbound.x )
+        {
+            transform.position = new Vector2(maxbound.x - PlayerSize.bounds.extents.x, transform.position.y);
+        }
+
+        else if (transform.position.x - PlayerSize.bounds.extents.x < minbound.x )
+        {
+            transform.position = new Vector2(minbound.x + PlayerSize.bounds.extents.x, transform.position.y);
+        }
     }
     private void Measures()                            
     {
@@ -159,32 +178,36 @@ public class Controller : MonoBehaviour
             LastPosition = transform.position;
 
             //Calculate the distance travelled on the Y-axis.
-            TravelledHeight = (Vector2.Distance(new Vector2(0, Spawn.transform.position.y), new Vector2(0, transform.localPosition.y))) * MeasureNormalizer; 
-                        
+            TravelledHeight = (Vector2.Distance(new Vector2(0, Spawn.transform.position.y), new Vector2(0, transform.localPosition.y))) * MeasureNormalizer;                     
+        }
+    }
+
+    private void Animations(float Horizontal)
+    {
+        //Incase The Falling boolean is true, but the Player isn't falling.
+        CubeAnimation.SetBool("Falling", IsFalling);
+
+        if (CubeAnimation.GetCurrentAnimatorStateInfo(0).IsName("fall"))
+        {
+            CubeAnimation.speed = 1 / (MaxFallingTime / 4); //Get the duration needed per one frame for the Falling animation.;
+        }
+        else { CubeAnimation.SetFloat("Input", Horizontal); }
+    }
+
+    private void OnTriggerEnter2D(Collider2D coll)
+    {
+        if (coll.gameObject.layer == LayerMask.NameToLayer("Items"))
+        {
+            AudioManagerScript.PlaySoundEffect(AudioManagerScript.CoinPickup);
+            Destroy(coll.gameObject);
+            Stats.NumOfCoins++;
         }
     }
     private void OnCollisionStay2D(Collision2D coll)
     {
         if (coll.collider.gameObject.tag == "Ground")
         {
-            OnGround = true;
             FallOfEdge(coll);
-
-            if (coll.collider.gameObject.layer == LayerMask.NameToLayer("BasePlatform"))
-            {
-                Vector2 bound = Camera.main.ViewportToWorldPoint(new Vector2(1, transform.position.y));
-                Vector2 bound2 = Camera.main.ViewportToWorldPoint(new Vector2(0, transform.position.y));
-
-                if (transform.position.x + PlayerSize.bounds.extents.x > bound.x)
-                {
-                    transform.position = new Vector2(bound.x - PlayerSize.bounds.extents.x, transform.position.y);
-                }
-
-                else if (transform.position.x - PlayerSize.bounds.extents.x < bound2.x)
-                {
-                    transform.position = new Vector2(bound2.x + PlayerSize.bounds.extents.x, transform.position.y);
-                }
-            }
         }
     }
     private void OnCollisionExit2D(Collision2D coll)
